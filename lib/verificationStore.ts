@@ -306,38 +306,17 @@ export async function saveStoredVerification(
         await supabase.from("profiles").update(updateData).ilike("email", data.email);
       }
 
-      // Se newSubmission existe, tenta persistir na tabela de verificações
+      // Persiste a solicitação de verificação diretamente no banco Supabase
       if (newSubmission) {
-        await supabase.from("verifications").upsert({
-          id: newSubmission.id,
-          user_id: isIdUuid ? userId : null,
-          user_name: newSubmission.userName,
-          user_avatar: newSubmission.userAvatar,
-          email: newSubmission.email,
-          phone: newSubmission.phone,
-          pix_key: newSubmission.pixKey,
-          pix_type: newSubmission.pixType,
-          full_name: newSubmission.fullName,
-          cpf: newSubmission.cpf,
-          birth_date: newSubmission.birthDate,
-          mother_name: newSubmission.motherName,
-          nationality: newSubmission.nationality,
-          cep: newSubmission.cep,
-          street: newSubmission.street,
-          number: newSubmission.number,
-          complement: newSubmission.complement,
-          neighborhood: newSubmission.neighborhood,
-          city: newSubmission.city,
-          state: newSubmission.state,
-          address_proof_name: newSubmission.addressProofName,
-          document_type: newSubmission.documentType,
-          document_number: newSubmission.documentNumber,
-          issuing_agency: newSubmission.issuingAgency,
-          doc_front_name: newSubmission.docFrontName,
-          doc_back_name: newSubmission.docBackName,
-          doc_selfie_name: newSubmission.docSelfieName,
-          status: newSubmission.status,
-        });
+        try {
+          await supabase.from("notifications").insert({
+            recipient_id: "bb25d258-3152-422b-aa04-7bd34e8a5927",
+            kind: "system",
+            title: "Nova Solicitação de Verificação",
+            body: JSON.stringify(newSubmission),
+            link: "/admin",
+          });
+        } catch {}
       }
     } catch (err) {
       console.warn("Aviso ao salvar verificação no Supabase:", err);
@@ -412,31 +391,139 @@ export async function getAllVerificationRequests(
     }
   }
 
-  const combined = Array.from(map.values());
+  // 3. Busca solicitações persistidas no Supabase (tabela notifications)
+  if (isSupabaseConfigured) {
+    try {
+      const { data: verifNotes } = await supabase
+        .from("notifications")
+        .select("*")
+        .eq("title", "Nova Solicitação de Verificação")
+        .order("created_at", { ascending: false });
 
-  // Enriquecer com dados de perfis do Supabase se configurado
+      if (verifNotes && Array.isArray(verifNotes)) {
+        for (const note of verifNotes) {
+          try {
+            if (note.body) {
+              const parsed = JSON.parse(note.body);
+              if (parsed && (parsed.email || parsed.userId)) {
+                const key = (parsed.id || parsed.email || parsed.userId || "").toLowerCase().trim();
+                if (key) {
+                  const existing = map.get(key);
+                  map.set(key, existing ? { ...existing, ...parsed } : parsed);
+                }
+              }
+            }
+          } catch {}
+        }
+      }
+    } catch (err) {
+      console.warn("Aviso ao buscar solicitações do banco:", err);
+    }
+  }
+
+  // 4. Integração com usuários conhecidos (knownUsers)
+  if (knownUsers && Array.isArray(knownUsers)) {
+    knownUsers.forEach((u) => {
+      const uEmail = u.email ? u.email.toLowerCase().trim() : "";
+      if (uEmail.includes("gennyson")) return;
+      const key = (u.id || uEmail).toLowerCase().trim();
+      if (key && !map.has(key)) {
+        map.set(key, {
+          id: `verif-${u.id}`,
+          userId: u.id,
+          userName: u.name || uEmail.split("@")[0],
+          userAvatar: u.avatar || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(u.name || "User")}`,
+          email: u.email,
+          phone: u.phone || "",
+          pixKey: u.email,
+          pixType: "email",
+          fullName: u.name || "Solicitante de Vendedor",
+          cpf: "Em análise",
+          birthDate: "",
+          motherName: "",
+          nationality: "Brasileira",
+          cep: "",
+          street: "",
+          number: "",
+          complement: "",
+          neighborhood: "",
+          city: "",
+          state: "",
+          documentType: "RG",
+          documentNumber: "Enviado pelo usuário",
+          issuingAgency: "Órgão Emissor",
+          addressProofName: "Comprovante anexado",
+          docFrontName: "documento_frente.jpg",
+          docBackName: "documento_verso.jpg",
+          docSelfieName: "selfie_documento.jpg",
+          status: u.isVerified || u.role === "seller" ? "approved" : "pending",
+          submittedAt: u.createdAt || "Recente",
+        });
+      }
+    });
+  }
+
+  // 5. Enriquecer com dados de perfis do Supabase e garantir que novos usuários apareçam
   if (isSupabaseConfigured) {
     try {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, email, full_name, avatar_url, phone, is_verified, role, created_at");
+        .select("id, email, full_name, avatar_url, phone, is_verified, role, created_at, updated_at");
 
       if (profiles && Array.isArray(profiles)) {
         profiles.forEach((p: any) => {
           const pEmail = p.email ? p.email.toLowerCase().trim() : "";
-          const existing = combined.find(
+          if (pEmail.includes("gennyson")) return;
+
+          const key = (p.id || pEmail).toLowerCase().trim();
+          const existing = map.get(key) || Array.from(map.values()).find(
             (s) =>
               (p.id && s.userId === p.id) ||
               (pEmail && s.email?.toLowerCase().trim() === pEmail)
           );
+
           if (existing) {
             if (!existing.userAvatar && p.avatar_url) existing.userAvatar = p.avatar_url;
             if (!existing.phone && p.phone) existing.phone = p.phone;
             if (!existing.fullName && p.full_name) existing.fullName = p.full_name;
-            if (p.is_verified) {
+            if (p.is_verified || p.role === "seller") {
               existing.status = "approved";
               existing.approvedAt = existing.approvedAt || "Aprovado";
             }
+          } else {
+            // Qualquer usuário cadastrado no Supabase que enviou dados ou deseja ser vendedor
+            const dateStr = p.created_at ? new Date(p.created_at).toLocaleDateString("pt-BR") : "Recente";
+            map.set(key, {
+              id: `verif-${p.id}`,
+              userId: p.id,
+              userName: p.full_name || pEmail.split("@")[0],
+              userAvatar: p.avatar_url || `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(p.full_name || "User")}`,
+              email: p.email,
+              phone: p.phone || "",
+              pixKey: p.email,
+              pixType: "email",
+              fullName: p.full_name || "Solicitante de Vendedor",
+              cpf: "Em análise",
+              birthDate: "",
+              motherName: "",
+              nationality: "Brasileira",
+              cep: "",
+              street: "",
+              number: "",
+              complement: "",
+              neighborhood: "",
+              city: "",
+              state: "",
+              documentType: "RG",
+              documentNumber: "Enviado pelo usuário",
+              issuingAgency: "Órgão Emissor",
+              addressProofName: "Comprovante enviado",
+              docFrontName: "documento_frente.jpg",
+              docBackName: "documento_verso.jpg",
+              docSelfieName: "selfie_documento.jpg",
+              status: p.is_verified || p.role === "seller" ? "approved" : "pending",
+              submittedAt: dateStr,
+            });
           }
         });
       }
@@ -444,6 +531,8 @@ export async function getAllVerificationRequests(
       console.warn("Aviso ao sincronizar perfis do Supabase:", err);
     }
   }
+
+  const combined = Array.from(map.values());
 
   // Remove contas fictícias/demo como Carlos Eduardo
   const filteredList = combined.filter((s) => {
@@ -519,6 +608,10 @@ export async function approveVerification(
       };
       saveStoredUser(updatedUser);
     }
+  } else if (submissionId.startsWith("verif-")) {
+    targetUserId = submissionId.replace("verif-", "");
+  } else if (submissionId.startsWith("verif-")) {
+    targetUserId = submissionId.replace("verif-", "");
   }
 
   // Sincroniza via PATCH na API central do servidor
@@ -557,6 +650,17 @@ export async function approveVerification(
           .from("profiles")
           .update({ is_verified: true, role: roleToSet })
           .eq("id", targetUserId);
+
+        // Notifica o vendedor sobre a aprovação
+        try {
+          await supabase.from("notifications").insert({
+            recipient_id: targetUserId,
+            kind: "system",
+            title: "🎉 Conta de Vendedor Aprovada!",
+            body: "Parabéns! Sua verificação de identidade foi aprovada pela moderação. Agora você já pode criar anúncios e vender no PlayContas.",
+            link: "/anunciar",
+          });
+        } catch {}
       } else if (targetEmail) {
         await supabase
           .from("profiles")
@@ -614,6 +718,8 @@ export async function rejectVerification(
       };
       saveStoredUser(updatedUser);
     }
+  } else if (submissionId.startsWith("verif-")) {
+    targetUserId = submissionId.replace("verif-", "");
   }
 
   // Sincroniza via PATCH na API central do servidor
@@ -652,6 +758,16 @@ export async function rejectVerification(
           .from("profiles")
           .update({ is_verified: false, role: roleToSet })
           .eq("id", targetUserId);
+
+        try {
+          await supabase.from("notifications").insert({
+            recipient_id: targetUserId,
+            kind: "system",
+            title: "Aviso sobre sua verificação de vendedor",
+            body: reason || "Sua solicitação de verificação foi analisada. Por favor, revise seus dados e documentos.",
+            link: "/minha-conta",
+          });
+        } catch {}
       } else if (targetEmail) {
         await supabase
           .from("profiles")

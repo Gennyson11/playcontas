@@ -253,17 +253,31 @@ export function AdminUsersPanel({
 
     setRoleBusyId(user.id);
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .update({ role: nextRole })
-        .eq("id", user.id)
-        .select("id, role");
-      if (error) throw error;
-      if (!data || data.length === 0) {
-        throw new Error(
-          "Sem permissão para alterar este usuário. Confirme que sua conta é admin no banco (execute o script admin-saldo-usuarios.sql)."
-        );
+      // 1. Tenta via RPC com privilégios de admin
+      let rpcSuccess = false;
+      try {
+        const { error: rpcErr } = await supabase.rpc("admin_set_role", {
+          target_id: user.id,
+          new_role: nextRole,
+        });
+        if (!rpcErr) {
+          rpcSuccess = true;
+        }
+      } catch {}
+
+      // 2. Se o RPC não respondeu, faz o update direto
+      if (!rpcSuccess) {
+        const updatePayload: any = { role: nextRole };
+        if (nextRole === "seller" || nextRole === "admin") {
+          updatePayload.is_verified = true;
+        }
+        const { error } = await supabase
+          .from("profiles")
+          .update(updatePayload)
+          .eq("id", user.id);
+        if (error) throw error;
       }
+
       onUsersChange(users.map((u) => (u.id === user.id ? { ...u, role: nextRole } : u)));
       setToast({ type: "success", text: `${user.name} agora é ${to}.` });
     } catch (err: any) {

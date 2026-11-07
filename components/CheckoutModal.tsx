@@ -28,9 +28,10 @@ interface CheckoutModalProps {
   product: Product | null;
   onClose: () => void;
   onPurchaseSuccess?: (productId: string) => void;
+  onRequireAuth?: () => void;
 }
 
-export function CheckoutModal({ product, onClose, onPurchaseSuccess }: CheckoutModalProps) {
+export function CheckoutModal({ product, onClose, onPurchaseSuccess, onRequireAuth }: CheckoutModalProps) {
   const [copied, setCopied] = useState(false);
   const [credentialCopied, setCredentialCopied] = useState(false);
   const [step, setStep] = useState<"payment" | "success">("payment");
@@ -71,6 +72,12 @@ export function CheckoutModal({ product, onClose, onPurchaseSuccess }: CheckoutM
 
   const handleGeneratePix = async () => {
     if (!product) return;
+    const buyer = getStoredUserSync();
+    if (!buyer) {
+      setBuyerError("Você precisa entrar na sua conta para finalizar a compra.");
+      if (onRequireAuth) onRequireAuth();
+      return;
+    }
     const trimmedName = buyerName.trim();
     const nameParts = trimmedName.split(/\s+/);
     if (!trimmedName || nameParts.length < 2 || nameParts[0].length < 2) {
@@ -344,24 +351,37 @@ export function CheckoutModal({ product, onClose, onPurchaseSuccess }: CheckoutM
                   )}
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleGeneratePix}
-                  disabled={isGenerating}
-                  className="w-full py-3.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
-                >
-                  {isGenerating ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                      <span>Gerando PIX SyncPay...</span>
-                    </div>
-                  ) : (
-                    <>
-                      <QrCode className="w-4 h-4" />
-                      <span>Gerar PIX e Pagar</span>
-                    </>
-                  )}
-                </button>
+                {!getStoredUserSync() ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (onRequireAuth) onRequireAuth();
+                    }}
+                    className="w-full py-3.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Entrar na Conta para Comprar</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleGeneratePix}
+                    disabled={isGenerating}
+                    className="w-full py-3.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/20 active:scale-95 transition-all cursor-pointer disabled:opacity-50"
+                  >
+                    {isGenerating ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Gerando PIX SyncPay...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <QrCode className="w-4 h-4" />
+                        <span>Gerar PIX e Pagar</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             ) : (
               /* ETAPA 1B: Exibição do QR Code e Copia e Cola */

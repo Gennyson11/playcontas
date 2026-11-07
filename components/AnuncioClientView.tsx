@@ -232,6 +232,12 @@ export function AnuncioClientView({ initialProduct, slug }: AnuncioClientViewPro
     selectedVariantId?: string
   ) => {
     const user = currentUser || getStoredUserSync();
+    if (!user) {
+      setAuthInitialTab("login");
+      setAuthModalOpen(true);
+      return;
+    }
+
     if (user && isProductOwner(product, user)) {
       setCartWarning(`Você não pode comprar produtos do seu próprio anúncio ("${product.title}").`);
       setCartModalOpen(true);
@@ -243,6 +249,13 @@ export function AnuncioClientView({ initialProduct, slug }: AnuncioClientViewPro
   };
 
   const handleCheckoutFromModal = () => {
+    const user = currentUser || getStoredUserSync();
+    if (!user) {
+      setCartModalOpen(false);
+      setAuthInitialTab("login");
+      setAuthModalOpen(true);
+      return;
+    }
     setCartModalOpen(false);
     router.push("/finalizar-compra");
   };
@@ -332,6 +345,11 @@ export function AnuncioClientView({ initialProduct, slug }: AnuncioClientViewPro
         warningNotice={cartWarning}
         onClearWarning={() => setCartWarning(null)}
         onCheckout={handleCheckoutFromModal}
+        onRequireAuth={() => {
+          setCartModalOpen(false);
+          setAuthInitialTab("login");
+          setAuthModalOpen(true);
+        }}
       />
 
       {checkoutProduct && (
@@ -339,6 +357,11 @@ export function AnuncioClientView({ initialProduct, slug }: AnuncioClientViewPro
           product={checkoutProduct}
           onClose={() => setCheckoutProduct(null)}
           onPurchaseSuccess={handlePurchaseSuccess}
+          onRequireAuth={() => {
+            setCheckoutProduct(null);
+            setAuthInitialTab("login");
+            setAuthModalOpen(true);
+          }}
         />
       )}
 
@@ -348,6 +371,13 @@ export function AnuncioClientView({ initialProduct, slug }: AnuncioClientViewPro
         items={cart}
         onRemoveItem={(id) => setCart((prev) => prev.filter((i) => i.product.id !== id))}
         onCheckout={() => {
+          const user = currentUser || getStoredUserSync();
+          if (!user) {
+            setCartOpen(false);
+            setAuthInitialTab("login");
+            setAuthModalOpen(true);
+            return;
+          }
           if (cart.length > 0) {
             setCheckoutProduct(cart[0].product);
             setCartOpen(false);

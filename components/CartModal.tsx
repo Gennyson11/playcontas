@@ -15,6 +15,7 @@ interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCheckout?: () => void;
+  onRequireAuth?: () => void;
   warningNotice?: string | null;
   onClearWarning?: () => void;
 }
@@ -23,6 +24,7 @@ export function CartModal({
   isOpen,
   onClose,
   onCheckout,
+  onRequireAuth,
   warningNotice,
   onClearWarning,
 }: CartModalProps) {
@@ -119,6 +121,17 @@ export function CartModal({
       );
       return;
     }
+
+    if (!currentUser) {
+      onClose();
+      if (onRequireAuth) {
+        onRequireAuth();
+      } else {
+        router.push("/finalizar-compra");
+      }
+      return;
+    }
+
     onClose();
     if (onCheckout) {
       onCheckout();

@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   AlertCircle,
   User,
+  Lock,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -769,6 +770,35 @@ export default function FinalizarCompraPage() {
                   </h1>
                 </div>
 
+                {/* Banner de Obrigatoriedade de Conta */}
+                {!currentUser && (
+                  <div className="p-4 rounded-2xl bg-blue-50/80 border border-blue-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fadeIn">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-[#0066FF] text-white flex items-center justify-center shrink-0 shadow-xs">
+                        <Lock className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h3 className="text-xs font-black text-zinc-950 uppercase tracking-wide">
+                          Conta Necessária para Comprar
+                        </h3>
+                        <p className="text-xs text-zinc-600 mt-0.5">
+                          Para sua segurança e entrega do produto no chat com o vendedor, você precisa estar conectado.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthInitialTab("login");
+                        setAuthModalOpen(true);
+                      }}
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-black text-xs shrink-0 transition-all cursor-pointer shadow-sm active:scale-95 text-center"
+                    >
+                      Entrar / Cadastrar
+                    </button>
+                  </div>
+                )}
+
                 {/* Card 1: Produtos do Pedido */}
                 <div className="bg-white border border-zinc-200/90 rounded-2xl p-5 shadow-2xs space-y-3">
                   <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-wider pb-2 border-b border-zinc-100">
@@ -1008,31 +1038,45 @@ export default function FinalizarCompraPage() {
                     </div>
                   )}
 
-                  {/* Botão de Ação: Gerar PIX e Pagar */}
-                  <button
-                    type="button"
-                    onClick={handleStartPayment}
-                    disabled={isProcessing || hasOwnItems}
-                    className={`w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all ${
-                      hasOwnItems
-                        ? "bg-zinc-200 text-zinc-500 cursor-not-allowed opacity-80"
-                        : "bg-[#0066FF] hover:bg-[#0052CC] text-white shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
-                    }`}
-                  >
-                    {isProcessing ? (
-                      <div className="flex items-center justify-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        <span>Processando pagamento...</span>
-                      </div>
-                    ) : hasOwnItems ? (
-                      <span>Você não pode comprar seu próprio anúncio</span>
-                    ) : (
-                      <>
-                        <QrCode className="w-4 h-4" />
-                        <span>Gerar PIX e Pagar</span>
-                      </>
-                    )}
-                  </button>
+                  {/* Botão de Ação: Gerar PIX e Pagar ou Exigir Login */}
+                  {!currentUser ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthInitialTab("login");
+                        setAuthModalOpen(true);
+                      }}
+                      className="w-full py-3.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-black text-sm flex items-center justify-center gap-2 shadow-md shadow-blue-500/25 active:scale-95 transition-all cursor-pointer"
+                    >
+                      <Lock className="w-4 h-4" />
+                      <span>Entrar na Conta para Finalizar</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={handleStartPayment}
+                      disabled={isProcessing || hasOwnItems}
+                      className={`w-full py-3.5 rounded-xl font-black text-sm flex items-center justify-center gap-2 transition-all ${
+                        hasOwnItems
+                          ? "bg-zinc-200 text-zinc-500 cursor-not-allowed opacity-80"
+                          : "bg-[#0066FF] hover:bg-[#0052CC] text-white shadow-md shadow-blue-500/20 active:scale-95 cursor-pointer disabled:opacity-50"
+                      }`}
+                    >
+                      {isProcessing ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                          <span>Processando pagamento...</span>
+                        </div>
+                      ) : hasOwnItems ? (
+                        <span>Você não pode comprar seu próprio anúncio</span>
+                      ) : (
+                        <>
+                          <QrCode className="w-4 h-4" />
+                          <span>Gerar PIX e Pagar</span>
+                        </>
+                      )}
+                    </button>
+                  )}
 
                   {/* Selo de Segurança Escrow */}
                   <div className="pt-1 flex items-center justify-center gap-1.5 text-xs text-zinc-500">

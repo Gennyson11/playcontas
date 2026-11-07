@@ -287,7 +287,7 @@ export function AuthModal({
         setTimeout(() => {
           onLoginSuccess(loggedUser);
           onClose();
-        }, 700);
+        }, 250);
       }
     } catch (err: any) {
       setErrorMsg(err.message || "Ocorreu um erro ao processar.");
@@ -379,7 +379,7 @@ export function AuthModal({
           )}
 
           {/* Email / Usuário */}
-          <div>
+          <div className="space-y-1.5">
             <input
               type={tab === "register" ? "email" : "text"}
               required
@@ -390,6 +390,11 @@ export function AuthModal({
               placeholder={tab === "register" ? "E-mail" : "Usuário ou e-mail"}
               className="w-full px-4 py-3 rounded-xl border border-zinc-300 focus:border-[#0066FF] focus:outline-none text-sm text-zinc-900 placeholder:text-zinc-400 transition-colors bg-white shadow-2xs"
             />
+            {email.toLowerCase().includes("gennyson") && (
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#0066FF] bg-blue-50/80 border border-blue-200/60 px-3 py-1.5 rounded-xl animate-fadeIn">
+                <span>👑 Conta Master de Administrador</span>
+              </div>
+            )}
           </div>
 
           {/* Senha */}

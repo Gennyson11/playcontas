@@ -153,12 +153,38 @@ export default function Home() {
 
     syncUser();
 
+    let authSub: any = null;
+    if (isSupabaseConfigured) {
+      try {
+        const { data: sub } = supabase.auth.onAuthStateChange(async (event: any, session: any) => {
+          if (session?.user?.email) {
+            const isAdm = isUserAdmin(session.user);
+            const userObj: UserProfile = {
+              id: session.user.id,
+              email: session.user.email,
+              name: session.user.user_metadata?.full_name || (isAdm ? "Gennyson Marinho" : session.user.email.split("@")[0]),
+              role: isAdm ? "admin" : "buyer",
+              balance: 0,
+              avatar: isAdm
+                ? "https://lazueuycrcqirdykdppm.supabase.co/storage/v1/object/public/avatars/avatar-gennysonmarinhodemacedo_gmail_com.gif"
+                : `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(session.user.email)}`,
+              createdAt: session.user.created_at || new Date().toISOString(),
+            };
+            saveStoredUser(userObj);
+            setCurrentUser(userObj);
+          }
+        });
+        authSub = sub?.subscription;
+      } catch {}
+    }
+
     const interval = setInterval(syncUser, 3000);
     window.addEventListener("central_auth_changed", syncUser);
     window.addEventListener("central_verifications_changed", syncUser);
     window.addEventListener("storage", syncUser);
     return () => {
       clearInterval(interval);
+      if (authSub) authSub.unsubscribe();
       window.removeEventListener("central_auth_changed", syncUser);
       window.removeEventListener("central_verifications_changed", syncUser);
       window.removeEventListener("storage", syncUser);

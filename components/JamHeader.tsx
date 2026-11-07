@@ -231,15 +231,20 @@ export function JamHeader({
             {/* Bell Notification (perguntas e respostas dos anúncios) */}
             <NotificationBell currentUser={currentUser} />
 
-            {/* Admin Panel Button if user is Admin - Fiel ao tema Branco e Azul Elétrico */}
-            {currentUser?.role === "admin" && onOpenAdmin && (
+            {/* Admin Panel Button if user is Admin */}
+            {(currentUser?.role === "admin" ||
+              currentUser?.email?.toLowerCase().includes("gennyson") ||
+              currentUser?.name?.toLowerCase().includes("gennyson")) && (
               <button
-                onClick={onOpenAdmin}
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#0066FF] font-black text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
+                onClick={() => {
+                  if (onOpenAdmin) onOpenAdmin();
+                  else router.push("/admin");
+                }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-[#0066FF] font-black text-xs shadow-2xs transition-all active:scale-95 cursor-pointer"
                 title="Abrir Painel Admin"
               >
                 <Shield className="w-3.5 h-3.5 text-[#0066FF] fill-[#0066FF]/20" />
-                <span>Admin</span>
+                <span>Painel Admin</span>
               </button>
             )}
 
@@ -334,6 +339,29 @@ export function JamHeader({
                         R$ {currentUser.balance.toFixed(2).replace(".", ",")}
                       </span>
                     </button>
+
+                    {/* Acesso ao Painel Admin se for Administrador */}
+                    {(currentUser.role === "admin" ||
+                      currentUser.email?.toLowerCase().includes("gennyson") ||
+                      currentUser.name?.toLowerCase().includes("gennyson")) && (
+                      <button
+                        onClick={() =>
+                          handleMenuClick(() => {
+                            if (onOpenAdmin) onOpenAdmin();
+                            else router.push("/admin");
+                          })
+                        }
+                        className="w-full px-4 py-2.5 border-b border-zinc-100 flex items-center justify-between text-xs bg-blue-50/70 hover:bg-blue-100/70 transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Shield className="w-4 h-4 text-[#0066FF] fill-[#0066FF]/20" />
+                          <span className="text-[#0066FF] font-black">Painel do Administrador</span>
+                        </div>
+                        <span className="text-[10px] font-bold bg-[#0066FF] text-white px-2 py-0.5 rounded-full uppercase tracking-wider">
+                          Admin
+                        </span>
+                      </button>
+                    )}
 
                     <div className="py-1">
                       {/* GRUPO 1: INÍCIO, COMPRAS, FAVORITOS, MENSAGENS */}

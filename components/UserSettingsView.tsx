@@ -35,6 +35,7 @@ import {
   Wallet,
   Bell,
   UserCheck,
+  Shield,
   ShieldCheck,
   Save,
   Key,
@@ -731,6 +732,29 @@ export function UserSettingsView({
               <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform text-zinc-500 group-hover:text-[#0066FF]" />
               <span>Voltar à loja</span>
             </button>
+
+            {/* SEÇÃO ADMIN (Exclusiva para Administrador) */}
+            {(currentUser.role === "admin" ||
+              currentUser.email?.toLowerCase().includes("gennyson") ||
+              currentUser.name?.toLowerCase().includes("gennyson")) && (
+              <div className="mb-5 p-3 rounded-2xl bg-blue-50/80 border border-blue-200">
+                <span className="block text-[10px] font-black uppercase tracking-wider text-[#0066FF] mb-2 flex items-center gap-1.5">
+                  <Shield className="w-3.5 h-3.5 fill-[#0066FF]/20" />
+                  ADMINISTRAÇÃO
+                </span>
+                <button
+                  type="button"
+                  onClick={() => router.push("/admin")}
+                  className="w-full flex items-center justify-between px-3 py-2 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white text-xs font-bold shadow-xs transition-all active:scale-95 cursor-pointer"
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    <span>Painel Admin</span>
+                  </div>
+                  <span className="text-[10px] bg-white/20 px-1.5 py-0.2 rounded-md">Abrir →</span>
+                </button>
+              </div>
+            )}
 
             {/* SEÇÃO 1: PAINEL */}
             <div className="mb-5">

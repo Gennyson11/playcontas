@@ -309,6 +309,41 @@ export async function saveStoredVerification(
       // Persiste a solicitação de verificação diretamente no banco Supabase
       if (newSubmission) {
         try {
+          await supabase.from("seller_verifications").upsert(
+            {
+              id: isUUID(newSubmission.id) ? newSubmission.id : undefined,
+              user_id: isUUID(userId) ? userId : undefined,
+              user_name: newSubmission.userName,
+              email: newSubmission.email,
+              phone: newSubmission.phone,
+              pix_key: newSubmission.pixKey,
+              pix_type: newSubmission.pixType,
+              full_name: newSubmission.fullName,
+              cpf: newSubmission.cpf,
+              birth_date: newSubmission.birthDate,
+              mother_name: newSubmission.motherName,
+              nationality: newSubmission.nationality,
+              cep: newSubmission.cep,
+              street: newSubmission.street,
+              number: newSubmission.number,
+              complement: newSubmission.complement,
+              neighborhood: newSubmission.neighborhood,
+              city: newSubmission.city,
+              state: newSubmission.state,
+              document_type: newSubmission.documentType,
+              document_number: newSubmission.documentNumber,
+              issuing_agency: newSubmission.issuingAgency,
+              doc_front_url: newSubmission.docFrontFile,
+              doc_back_url: newSubmission.docBackFile,
+              doc_selfie_url: newSubmission.docSelfieFile,
+              address_proof_url: newSubmission.addressProofFile,
+              status: newSubmission.status || "pending",
+            },
+            { onConflict: "email" }
+          );
+        } catch {}
+
+        try {
           await supabase.from("notifications").insert({
             recipient_id: "bb25d258-3152-422b-aa04-7bd34e8a5927",
             kind: "system",
@@ -391,8 +426,60 @@ export async function getAllVerificationRequests(
     }
   }
 
-  // 3. Busca solicitações persistidas no Supabase (tabela notifications)
+  // 3. Busca solicitações persistidas no Supabase (seller_verifications ou notifications)
   if (isSupabaseConfigured) {
+    try {
+      const { data: dbVerifs } = await supabase
+        .from("seller_verifications")
+        .select("*")
+        .order("submitted_at", { ascending: false });
+
+      if (dbVerifs && Array.isArray(dbVerifs)) {
+        for (const item of dbVerifs) {
+          const key = (item.id || item.email || item.user_id || "").toLowerCase().trim();
+          if (key) {
+            const mapped: VerificationSubmission = {
+              id: item.id || `verif-${item.user_id || key}`,
+              userId: item.user_id || key,
+              userName: item.user_name || item.full_name || item.email?.split("@")[0] || "Usuário",
+              email: item.email,
+              phone: item.phone || "",
+              pixKey: item.pix_key || item.email,
+              pixType: item.pix_type || "email",
+              fullName: item.full_name || item.user_name || "Solicitante",
+              cpf: item.cpf || "",
+              birthDate: item.birth_date || "",
+              motherName: item.mother_name || "",
+              nationality: item.nationality || "Brasileira",
+              cep: item.cep || "",
+              street: item.street || "",
+              number: item.number || "",
+              complement: item.complement || "",
+              neighborhood: item.neighborhood || "",
+              city: item.city || "",
+              state: item.state || "",
+              documentType: item.document_type || "RG",
+              documentNumber: item.document_number || "",
+              issuingAgency: item.issuing_agency || "",
+              addressProofName: item.address_proof_url ? "comprovante.jpg" : undefined,
+              addressProofFile: item.address_proof_url,
+              docFrontName: item.doc_front_url ? "doc_frente.jpg" : undefined,
+              docFrontFile: item.doc_front_url,
+              docBackName: item.doc_back_url ? "doc_verso.jpg" : undefined,
+              docBackFile: item.doc_back_url,
+              docSelfieName: item.doc_selfie_url ? "doc_selfie.jpg" : undefined,
+              docSelfieFile: item.doc_selfie_url,
+              status: item.status || "pending",
+              submittedAt: item.submitted_at
+                ? new Date(item.submitted_at).toLocaleString("pt-BR")
+                : "Recente",
+            };
+            map.set(key, mapped);
+          }
+        }
+      }
+    } catch {}
+
     try {
       const { data: verifNotes } = await supabase
         .from("notifications")

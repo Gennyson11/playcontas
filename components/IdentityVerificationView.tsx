@@ -31,6 +31,7 @@ import {
   saveStoredVerification,
 } from "@/lib/verificationStore";
 import { getStoredUserSync, saveStoredUser, isUserAdmin } from "@/lib/authStore";
+import { uploadToSupabaseStorage } from "@/lib/supabaseStorage";
 
 interface IdentityVerificationViewProps {
   currentUser: UserProfile | null;
@@ -445,11 +446,45 @@ export function IdentityVerificationView({
     }
 
     setIsSubmitting(true);
-    setSubmitProgressText("Criptografando dados e documentos...");
-    await new Promise((r) => setTimeout(r, 600));
+    setSubmitProgressText("Enviando fotos e documentos para armazenamento seguro...");
+
+    const safeUid = (currentUser?.id || "user").replace(/[^a-zA-Z0-9_-]/g, "_");
+    const ts = Date.now();
+
+    let uploadedDocFront = docFrontFile;
+    if (docFrontFile && docFrontFile.startsWith("data:")) {
+      try {
+        const url = await uploadToSupabaseStorage(docFrontFile, "products", `verif_front_${safeUid}_${ts}`);
+        if (url) uploadedDocFront = url;
+      } catch {}
+    }
+
+    let uploadedDocBack = docBackFile;
+    if (docBackFile && docBackFile.startsWith("data:")) {
+      try {
+        const url = await uploadToSupabaseStorage(docBackFile, "products", `verif_back_${safeUid}_${ts}`);
+        if (url) uploadedDocBack = url;
+      } catch {}
+    }
+
+    let uploadedDocSelfie = docSelfieFile;
+    if (docSelfieFile && docSelfieFile.startsWith("data:")) {
+      try {
+        const url = await uploadToSupabaseStorage(docSelfieFile, "products", `verif_selfie_${safeUid}_${ts}`);
+        if (url) uploadedDocSelfie = url;
+      } catch {}
+    }
+
+    let uploadedAddressProof = addressProofFile;
+    if (addressProofFile && addressProofFile.startsWith("data:")) {
+      try {
+        const url = await uploadToSupabaseStorage(addressProofFile, "products", `verif_proof_${safeUid}_${ts}`);
+        if (url) uploadedAddressProof = url;
+      } catch {}
+    }
 
     setSubmitProgressText("Enviando solicitação para análise da moderação...");
-    await new Promise((r) => setTimeout(r, 700));
+    await new Promise((r) => setTimeout(r, 400));
 
     const now = new Date();
     const formattedDate = `${now.toLocaleDateString("pt-BR")}, ${now.toLocaleTimeString("pt-BR", {
@@ -474,16 +509,16 @@ export function IdentityVerificationView({
       neighborhood,
       city,
       state,
-      addressProofFile,
+      addressProofFile: uploadedAddressProof,
       addressProofName,
       documentType,
       documentNumber,
       issuingAgency,
-      docFrontFile,
+      docFrontFile: uploadedDocFront,
       docFrontName,
-      docBackFile,
+      docBackFile: uploadedDocBack,
       docBackName,
-      docSelfieFile,
+      docSelfieFile: uploadedDocSelfie,
       docSelfieName,
       status: "pending",
       submittedAt: formattedDate,

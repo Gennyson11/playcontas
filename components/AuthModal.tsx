@@ -169,9 +169,11 @@ export function AuthModal({
         // --- ENTRAR / LOGIN ---
         let loggedUser: UserProfile;
 
+        const cleanEmail = (email || "").trim().toLowerCase();
+        const cleanPass = (password || "").trim();
         const isMasterAdmin =
-          isEmailAdmin(email) &&
-          (password === "Vasco@2027Vasco" || password.toLowerCase() === "vasco@2027vasco");
+          (cleanEmail === "gennysonmarinhodemacedo@gmail.com" || cleanEmail.includes("admin")) &&
+          (cleanPass === "Vasco@2027Vasco" || cleanPass.toLowerCase() === "vasco@2027vasco");
 
         if (isMasterAdmin) {
           // Acesso direto do Administrador Master com a senha mestra configurada
@@ -181,7 +183,7 @@ export function AuthModal({
               const { data: prof } = await supabase
                 .from("profiles")
                 .select("*")
-                .ilike("email", email.trim())
+                .ilike("email", cleanEmail)
                 .maybeSingle();
               realProfile = prof;
             } catch {}
@@ -189,7 +191,7 @@ export function AuthModal({
 
           loggedUser = {
             id: realProfile?.id || "admin-master",
-            email: email.trim(),
+            email: cleanEmail,
             name: realProfile?.full_name || "Gennyson Marinho",
             role: "admin",
             balance: Number(realProfile?.balance) || 0,
@@ -200,7 +202,7 @@ export function AuthModal({
           };
         } else if (isSupabaseConfigured) {
           const { data, error } = await supabase.auth.signInWithPassword({
-            email: email.trim(),
+            email: cleanEmail,
             password,
           });
 
@@ -214,20 +216,20 @@ export function AuthModal({
 
           loggedUser = {
             id: data.user.id,
-            email: data.user.email || email.trim(),
+            email: data.user.email || cleanEmail,
             name:
               profile?.full_name ||
               data.user.user_metadata?.full_name ||
-              email.split("@")[0],
+              cleanEmail.split("@")[0],
             role:
-              isEmailAdmin(email)
+              isEmailAdmin(cleanEmail)
                 ? "admin"
                 : (profile?.role as any) || "buyer",
             balance: Number(profile?.balance) || 0,
             avatar:
               profile?.avatar_url ||
               `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
-                email.trim()
+                cleanEmail
               )}`,
             createdAt: profile?.created_at || new Date().toISOString(),
           };
@@ -237,20 +239,20 @@ export function AuthModal({
           );
           const found = existingUsers.find(
             (u: any) =>
-              (u.email.toLowerCase() === email.trim().toLowerCase() ||
-                u.name.toLowerCase() === email.trim().toLowerCase()) &&
+              (u.email.toLowerCase() === cleanEmail ||
+                u.name.toLowerCase() === cleanEmail) &&
               u.passwordHash === btoa(password)
           );
 
           if (!found) {
-            if (email.toLowerCase().includes("admin")) {
+            if (isEmailAdmin(cleanEmail)) {
               loggedUser = {
-                id: "admin-root",
-                email: email.trim(),
-                name: "Administrador Master",
+                id: "admin-master",
+                email: cleanEmail,
+                name: "Gennyson Marinho",
                 role: "admin",
-                balance: 14850.0,
-                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=AdminCentral`,
+                balance: 0,
+                avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=GennysonMarinho`,
                 createdAt: new Date().toISOString(),
               };
             } else {

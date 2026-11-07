@@ -35,7 +35,7 @@ import { MyProductsView } from "@/components/MyProductsView";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { variationFieldsFromRow, createProductRemote, groupsFromProduct } from "@/lib/productVault";
 import { getUserAvatar, saveUserAvatar } from "@/lib/avatarStore";
-import { getStoredUserSync, saveStoredUser, clearStoredUser, persistUser, isProductOwner } from "@/lib/authStore";
+import { getStoredUserSync, saveStoredUser, clearStoredUser, persistUser, isProductOwner, isUserAdmin } from "@/lib/authStore";
 import { uploadToSupabaseStorage } from "@/lib/supabaseStorage";
 import { addToCart, getStoredCart, removeFromCart } from "@/lib/cartStore";
 import { getStoredVerification } from "@/lib/verificationStore";
@@ -110,6 +110,13 @@ export default function Home() {
                   resolvedName = "BuscaNinja";
                   supabase.from("profiles").update({ full_name: "BuscaNinja" }).eq("id", data.id).then();
                 }
+
+                const isAdm = isUserAdmin(user) || isUserAdmin(prev) || data.role === "admin";
+                // Garante que o banco do Supabase mantenha role: 'admin' para o administrador
+                if (isAdm && data.role !== "admin") {
+                  supabase.from("profiles").update({ role: "admin" }).eq("id", data.id).then();
+                }
+
                 const resolvedStatus = (data.is_verified || serverStatus === "approved")
                   ? ("approved" as const)
                   : (serverStatus || prev.verificationStatus || "none");
@@ -118,7 +125,7 @@ export default function Home() {
                   name: resolvedName,
                   avatar: data.avatar_url || prev.avatar,
                   balance: data.balance != null ? Number(data.balance) : prev.balance,
-                  role: (data.role || prev.role) as "admin" | "buyer" | "seller",
+                  role: isAdm ? "admin" : ((data.role || prev.role) as "admin" | "buyer" | "seller"),
                   isVerified: Boolean(data.is_verified || resolvedStatus === "approved"),
                   verificationStatus: resolvedStatus,
                   phone: data.phone || prev.phone,
@@ -129,14 +136,15 @@ export default function Home() {
             }
           });
       } else {
+        const isAdm = isUserAdmin(user);
         const resolvedStatus = serverStatus || user.verificationStatus || "none";
         const updated = {
           ...user,
           verificationStatus: resolvedStatus,
           isVerified: resolvedStatus === "approved",
-          role: resolvedStatus === "approved" ? "seller" : (user.role === "admin" ? "admin" : "buyer"),
+          role: isAdm ? "admin" : (resolvedStatus === "approved" ? "seller" : "buyer"),
         };
-        if (updated.verificationStatus !== user.verificationStatus || updated.isVerified !== user.isVerified) {
+        if (updated.verificationStatus !== user.verificationStatus || updated.isVerified !== user.isVerified || updated.role !== user.role) {
           saveStoredUser(updated as any);
         }
         setCurrentUser(updated as any);
@@ -552,11 +560,13 @@ export default function Home() {
     c.name.toLowerCase().includes(modalSearch.toLowerCase())
   );
 
+  const isAdminUser = isUserAdmin(currentUser);
+
   // If user requested Admin Dashboard and is logged in as admin
-  if (isAdminView && currentUser?.role === "admin") {
+  if (isAdminView && isAdminUser) {
     return (
       <AdminDashboard
-        currentUser={currentUser}
+        currentUser={currentUser!}
         products={products}
         onBackToShop={() => setIsAdminView(false)}
         onUpdateProducts={handleUpdateProducts}
@@ -711,7 +721,7 @@ export default function Home() {
             currentUserEmail={currentUser?.email}
             currentUserId={currentUser?.id}
             currentUserName={currentUser?.name}
-            isAdmin={currentUser?.role === "admin"}
+            isAdmin={isAdminUser}
             onBack={() => setIsMyProductsView(false)}
             onOpenCreateListing={() => {
               router.push("/anunciar");

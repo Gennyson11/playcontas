@@ -1,6 +1,6 @@
 import { VerificationData, VerificationSubmission, UserProfile } from "@/types";
 import { supabase, isSupabaseConfigured } from "./supabaseClient";
-import { saveStoredUser, getStoredUserSync } from "./authStore";
+import { saveStoredUser, getStoredUserSync, isUserAdmin } from "./authStore";
 
 const VERIFICATION_STORAGE_KEY = "central_user_verification";
 const ALL_VERIFICATIONS_KEY = "central_all_verifications";
@@ -264,7 +264,7 @@ export async function saveStoredVerification(
         ...user,
         isVerified: true,
         verificationStatus: "approved",
-        role: user.role === "admin" ? "admin" : "seller",
+        role: isUserAdmin(user) ? "admin" : "seller",
         phone: data.phone || user.phone,
         cpf: data.cpf || user.cpf,
       };
@@ -513,7 +513,7 @@ export async function approveVerification(
         ...currentUser,
         isVerified: true,
         verificationStatus: "approved",
-        role: currentUser.role === "admin" ? "admin" : "seller",
+        role: isUserAdmin(currentUser) ? "admin" : "seller",
         phone: item.phone || currentUser.phone,
         cpf: item.cpf || currentUser.cpf,
       };
@@ -548,15 +548,19 @@ export async function approveVerification(
   // Atualiza no Supabase diretamente como fallback se configurado
   if (isSupabaseConfigured) {
     try {
+      const isAdmTarget =
+        Boolean(targetEmail && targetEmail.toLowerCase().includes("gennyson")) ||
+        Boolean(idx >= 0 && list[idx]?.email && list[idx].email.toLowerCase().includes("gennyson"));
+      const roleToSet = isAdmTarget ? "admin" : "seller";
       if (targetUserId && isUUID(targetUserId)) {
         await supabase
           .from("profiles")
-          .update({ is_verified: true, role: "seller" })
+          .update({ is_verified: true, role: roleToSet })
           .eq("id", targetUserId);
       } else if (targetEmail) {
         await supabase
           .from("profiles")
-          .update({ is_verified: true, role: "seller" })
+          .update({ is_verified: true, role: roleToSet })
           .ilike("email", targetEmail);
       }
     } catch (err) {
@@ -606,7 +610,7 @@ export async function rejectVerification(
         ...currentUser,
         isVerified: false,
         verificationStatus: "rejected",
-        role: currentUser.role === "admin" ? "admin" : "buyer",
+        role: isUserAdmin(currentUser) ? "admin" : "buyer",
       };
       saveStoredUser(updatedUser);
     }
@@ -639,15 +643,19 @@ export async function rejectVerification(
   // Atualiza no Supabase diretamente como fallback se configurado
   if (isSupabaseConfigured) {
     try {
+      const isAdmTarget =
+        Boolean(targetEmail && targetEmail.toLowerCase().includes("gennyson")) ||
+        Boolean(idx >= 0 && list[idx]?.email && list[idx].email.toLowerCase().includes("gennyson"));
+      const roleToSet = isAdmTarget ? "admin" : "buyer";
       if (targetUserId && isUUID(targetUserId)) {
         await supabase
           .from("profiles")
-          .update({ is_verified: false, role: "buyer" })
+          .update({ is_verified: false, role: roleToSet })
           .eq("id", targetUserId);
       } else if (targetEmail) {
         await supabase
           .from("profiles")
-          .update({ is_verified: false, role: "buyer" })
+          .update({ is_verified: false, role: roleToSet })
           .ilike("email", targetEmail);
       }
     } catch (err) {

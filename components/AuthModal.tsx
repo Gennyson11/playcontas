@@ -41,7 +41,7 @@ export function AuthModal({
 
   const isEmailAdmin = (e: string) => {
     const clean = (e || "").trim().toLowerCase();
-    return clean === "gennysonmarinhodemacedo@gmail.com" || clean.includes("admin");
+    return clean.includes("gennyson") || clean.includes("admin");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -172,7 +172,7 @@ export function AuthModal({
         const cleanEmail = (email || "").trim().toLowerCase();
         const cleanPass = (password || "").trim();
         const isMasterAdmin =
-          (cleanEmail === "gennysonmarinhodemacedo@gmail.com" || cleanEmail.includes("admin")) &&
+          isEmailAdmin(cleanEmail) &&
           (cleanPass === "Vasco@2027Vasco" || cleanPass.toLowerCase() === "vasco@2027vasco");
 
         if (isMasterAdmin) {
@@ -186,6 +186,9 @@ export function AuthModal({
                 .ilike("email", cleanEmail)
                 .maybeSingle();
               realProfile = prof;
+              if (prof && prof.role !== "admin") {
+                supabase.from("profiles").update({ role: "admin" }).eq("id", prof.id).then();
+              }
             } catch {}
           }
 
@@ -214,6 +217,10 @@ export function AuthModal({
             .eq("id", data.user.id)
             .single();
 
+          if (isEmailAdmin(cleanEmail) && profile?.role !== "admin") {
+            supabase.from("profiles").update({ role: "admin" }).eq("id", data.user.id).then();
+          }
+
           loggedUser = {
             id: data.user.id,
             email: data.user.email || cleanEmail,
@@ -222,7 +229,7 @@ export function AuthModal({
               data.user.user_metadata?.full_name ||
               cleanEmail.split("@")[0],
             role:
-              isEmailAdmin(cleanEmail)
+              isEmailAdmin(cleanEmail) || profile?.role === "admin"
                 ? "admin"
                 : (profile?.role as any) || "buyer",
             balance: Number(profile?.balance) || 0,

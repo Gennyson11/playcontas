@@ -5,6 +5,25 @@ import { GENNYSON_AVATAR_URL, clearUserAvatar } from "./avatarStore";
 export const USER_STORAGE_KEY = "central_user";
 
 /**
+ * Verifica de forma definitiva se o usuário possui privilégios de Administrador Master.
+ */
+export function isUserAdmin(user: Partial<UserProfile> | null | undefined): boolean {
+  if (!user) return false;
+  if (user.role === "admin") return true;
+  const email = (user.email || "").toLowerCase().trim();
+  const name = (user.name || "").toLowerCase().trim();
+  return (
+    email.includes("gennyson") ||
+    email.includes("admin") ||
+    name.includes("gennyson") ||
+    user.id === "user-gennyson-admin" ||
+    user.id === "usr-gennyson" ||
+    user.id === "admin-master" ||
+    user.id === "bb25d258-3152-422b-aa04-7bd34e8a5927"
+  );
+}
+
+/**
  * Retorna o usuário logado atualmente (ou null se deslogado).
  * NUNCA força usuário padrão quando a sessão estiver vazia.
  */
@@ -16,11 +35,8 @@ export function getStoredUserSync(): UserProfile | null {
     const parsed: UserProfile = JSON.parse(raw);
     if (!parsed || !parsed.id) return null;
 
-    // Se for Gennyson, garante papel de admin e avatar atualizado
-    if (
-      parsed.email?.toLowerCase().includes("gennyson") ||
-      parsed.name?.toLowerCase().includes("gennyson")
-    ) {
+    // Se for Gennyson / Admin, garante papel de admin e avatar atualizado
+    if (isUserAdmin(parsed)) {
       parsed.role = "admin";
       parsed.balance = Number(parsed.balance) || 0;
       if (!parsed.avatar || parsed.avatar.includes("dicebear") || parsed.avatar.includes("avatar-bb25d258")) {
@@ -50,22 +66,30 @@ export function getStoredUserSync(): UserProfile | null {
  * recriados (produtos em cache, avatar em cache) e tenta novamente, evitando que o login falhe.
  */
 function sanitizeUserForStorage(user: UserProfile): UserProfile {
+  const u = { ...user };
+  if (isUserAdmin(u)) {
+    u.role = "admin";
+  }
   // Imagens base64 gigantes não devem ir no localStorage (o avatar real fica no IndexedDB)
-  if (user.avatar && user.avatar.startsWith("data:") && user.avatar.length > 20000) {
+  if (u.avatar && u.avatar.startsWith("data:") && u.avatar.length > 20000) {
     return {
-      ...user,
+      ...u,
       avatar: `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
-        user.name || user.email || "user"
+        u.name || u.email || "user"
       )}`,
     };
   }
-  return user;
+  return u;
 }
 
 export function persistUser(user: UserProfile): boolean {
   if (typeof window === "undefined") return false;
 
-  const toSave = sanitizeUserForStorage(user);
+  const safeUser = { ...user };
+  if (isUserAdmin(safeUser)) {
+    safeUser.role = "admin";
+  }
+  const toSave = sanitizeUserForStorage(safeUser);
 
   const tryWrite = (): boolean => {
     try {
@@ -107,10 +131,14 @@ export function persistUser(user: UserProfile): boolean {
 export function saveStoredUser(user: UserProfile): void {
   if (typeof window === "undefined") return;
   try {
+    const safeUser = { ...user };
+    if (isUserAdmin(safeUser)) {
+      safeUser.role = "admin";
+    }
     const previous = localStorage.getItem(USER_STORAGE_KEY);
-    if (previous && previous === JSON.stringify(sanitizeUserForStorage(user))) return; // nada mudou: evita loop de eventos
-    persistUser(user);
-    window.dispatchEvent(new CustomEvent("central_auth_changed", { detail: user }));
+    if (previous && previous === JSON.stringify(sanitizeUserForStorage(safeUser))) return; // nada mudou: evita loop de eventos
+    persistUser(safeUser);
+    window.dispatchEvent(new CustomEvent("central_auth_changed", { detail: safeUser }));
     window.dispatchEvent(new Event("storage"));
   } catch (err) {
     console.warn("Erro ao salvar usuário:", err);

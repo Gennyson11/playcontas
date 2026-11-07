@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { UserProfile } from "@/types";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { saveUserAvatar, getUserAvatar, getCachedAvatarSync } from "@/lib/avatarStore";
-import { persistUser, saveStoredUser, getStoredUserSync } from "@/lib/authStore";
+import { persistUser, saveStoredUser, getStoredUserSync, isUserAdmin } from "@/lib/authStore";
 import { uploadToSupabaseStorage } from "@/lib/supabaseStorage";
 import { IdentityVerificationView } from "@/components/IdentityVerificationView";
 import { NotificationPreferencesView } from "@/components/NotificationPreferencesView";
@@ -265,11 +265,12 @@ export function UserSettingsView({
                   (subPhone && cur.phone !== subPhone) ||
                   (subCpf && cur.cpf !== subCpf))
               ) {
+                const isAdm = isUserAdmin(cur);
                 const updated = {
                   ...cur,
                   verificationStatus: newStatus,
                   isVerified: newStatus === "approved",
-                  role: newStatus === "approved" ? "seller" : cur.role === "admin" ? "admin" : "buyer",
+                  role: isAdm ? "admin" : (newStatus === "approved" ? "seller" : "buyer"),
                   phone: subPhone || cur.phone,
                   cpf: subCpf || cur.cpf,
                 };

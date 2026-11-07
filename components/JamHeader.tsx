@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { UserProfile } from "@/types";
 import { NotificationBell } from "@/components/NotificationBell";
 import { usePresenceHeartbeat } from "@/lib/presenceStore";
-import { getStoredUserSync, saveStoredUser } from "@/lib/authStore";
+import { getStoredUserSync, saveStoredUser, isUserAdmin } from "@/lib/authStore";
 import {
   Search,
   ShoppingCart,
@@ -87,11 +87,12 @@ export function JamHeader({
             setLiveVerifStatus(st);
             const cur = getStoredUserSync();
             if (cur && (cur.verificationStatus !== st || (st === "approved" && !cur.isVerified))) {
+              const isAdm = isUserAdmin(cur);
               const updated = {
                 ...cur,
                 verificationStatus: st,
                 isVerified: st === "approved",
-                role: st === "approved" ? "seller" : (cur.role === "admin" ? "admin" : "buyer"),
+                role: isAdm ? "admin" : (st === "approved" ? "seller" : "buyer"),
               };
               saveStoredUser(updated as any);
             }
@@ -341,9 +342,7 @@ export function JamHeader({
                     </button>
 
                     {/* Acesso ao Painel Admin se for Administrador */}
-                    {(currentUser.role === "admin" ||
-                      currentUser.email?.toLowerCase().includes("gennyson") ||
-                      currentUser.name?.toLowerCase().includes("gennyson")) && (
+                    {isUserAdmin(currentUser) && (
                       <button
                         onClick={() =>
                           handleMenuClick(() => {

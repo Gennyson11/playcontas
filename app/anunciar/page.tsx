@@ -8,7 +8,7 @@ import { JamFooter } from "@/components/JamFooter";
 import { CreateListingView } from "@/components/CreateListingView";
 import { CartModal } from "@/components/CartModal";
 import { AuthModal } from "@/components/AuthModal";
-import { getStoredUserSync, clearStoredUser } from "@/lib/authStore";
+import { getStoredUserSync, clearStoredUser, isUserAdmin, saveStoredUser } from "@/lib/authStore";
 import { saveStoredProduct, getStoredProducts, deleteStoredProduct } from "@/lib/productStore";
 import { getStoredVerification } from "@/lib/verificationStore";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
@@ -59,15 +59,17 @@ export default function AnunciarPage() {
             if (data) {
               setCurrentUser((prev) => {
                 if (!prev || prev.email?.toLowerCase() !== user.email?.toLowerCase()) return prev;
+                const isAdm = isUserAdmin(user) || isUserAdmin(prev) || data.role === "admin";
                 const updated: UserProfile = {
                   ...prev,
                   name: data.full_name || prev.name,
                   avatar: data.avatar_url || prev.avatar,
                   balance: data.balance != null ? Number(data.balance) : prev.balance,
-                  role: (data.role || prev.role) as "admin" | "buyer" | "seller",
+                  role: isAdm ? "admin" : ((data.role || prev.role) as "admin" | "buyer" | "seller"),
                   isVerified: Boolean(data.is_verified),
                   verificationStatus: data.is_verified ? ("approved" as const) : (prev.verificationStatus || "none"),
                 };
+                saveStoredUser(updated);
                 return updated;
               });
             }

@@ -30,7 +30,7 @@ import {
   getStoredVerification,
   saveStoredVerification,
 } from "@/lib/verificationStore";
-import { getStoredUserSync, saveStoredUser } from "@/lib/authStore";
+import { getStoredUserSync, saveStoredUser, isUserAdmin } from "@/lib/authStore";
 
 interface IdentityVerificationViewProps {
   currentUser: UserProfile | null;
@@ -109,11 +109,12 @@ export function IdentityVerificationView({
             // Sincroniza no authStore o usuário local
             const cur = getStoredUserSync();
             if (cur && sub.status && cur.verificationStatus !== sub.status) {
+              const isAdm = isUserAdmin(cur);
               const updatedUser = {
                 ...cur,
                 verificationStatus: sub.status,
                 isVerified: sub.status === "approved",
-                role: sub.status === "approved" ? "seller" : (cur.role === "admin" ? "admin" : "buyer"),
+                role: isAdm ? "admin" : (sub.status === "approved" ? "seller" : "buyer"),
               };
               saveStoredUser(updatedUser as any);
             }

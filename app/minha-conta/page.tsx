@@ -4,7 +4,7 @@ import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { UserProfile, CartItem } from "@/types";
 import { getUserAvatar, saveUserAvatar } from "@/lib/avatarStore";
-import { getStoredUserSync, saveStoredUser, clearStoredUser, persistUser } from "@/lib/authStore";
+import { getStoredUserSync, saveStoredUser, clearStoredUser, persistUser, isUserAdmin } from "@/lib/authStore";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { JamHeader } from "@/components/JamHeader";
 import { JamFooter } from "@/components/JamFooter";
@@ -93,6 +93,10 @@ export default function MinhaContaPage() {
                   resolvedName = "BuscaNinja";
                   supabase.from("profiles").update({ full_name: "BuscaNinja" }).eq("id", data.id).then();
                 }
+                const isAdm = isUserAdmin(user) || isUserAdmin(prev) || data.role === "admin";
+                if (isAdm && data.role !== "admin") {
+                  supabase.from("profiles").update({ role: "admin" }).eq("id", data.id).then();
+                }
                 const resolvedStatus = (data.is_verified || serverStatus === "approved")
                   ? ("approved" as const)
                   : (serverStatus || prev.verificationStatus || "none");
@@ -101,7 +105,7 @@ export default function MinhaContaPage() {
                   avatar: data.avatar_url,
                   name: resolvedName,
                   balance: data.balance != null ? Number(data.balance) : prev.balance,
-                  role: (data.role || prev.role) as "admin" | "buyer" | "seller",
+                  role: isAdm ? "admin" : ((data.role || prev.role) as "admin" | "buyer" | "seller"),
                   isVerified: Boolean(data.is_verified || resolvedStatus === "approved"),
                   verificationStatus: resolvedStatus,
                   phone: data.phone || prev.phone,
@@ -112,14 +116,15 @@ export default function MinhaContaPage() {
             }
           });
       } else {
+        const isAdm = isUserAdmin(user);
         const resolvedStatus = serverStatus || user.verificationStatus || "none";
         const updated = {
           ...user,
           verificationStatus: resolvedStatus,
           isVerified: resolvedStatus === "approved",
-          role: resolvedStatus === "approved" ? "seller" : (user.role === "admin" ? "admin" : "buyer"),
+          role: isAdm ? "admin" : (resolvedStatus === "approved" ? "seller" : "buyer"),
         };
-        if (updated.verificationStatus !== user.verificationStatus || updated.isVerified !== user.isVerified) {
+        if (updated.verificationStatus !== user.verificationStatus || updated.isVerified !== user.isVerified || updated.role !== user.role) {
           saveStoredUser(updated as any);
         }
         setCurrentUser(updated as any);

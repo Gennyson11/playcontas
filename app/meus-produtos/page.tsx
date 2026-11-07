@@ -261,6 +261,7 @@ export default function MeusProdutosPage() {
           // Already on meus-produtos
           window.scrollTo({ top: 0, behavior: "smooth" });
         }}
+        onOpenAdmin={() => router.push("/admin")}
         onGoHome={() => router.push("/")}
         onLogout={async () => {
           await clearStoredUser();

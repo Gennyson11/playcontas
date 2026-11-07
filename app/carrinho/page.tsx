@@ -136,7 +136,7 @@ export default function CarrinhoPage() {
           setAuthModalOpen(true);
         }}
         onOpenMyProducts={() => router.push("/meus-produtos")}
-        onOpenAdmin={() => router.push("/?admin=true")}
+        onOpenAdmin={() => router.push("/admin")}
         onOpenSettings={() => router.push("/minha-conta")}
         onGoHome={() => router.push("/")}
         onLogout={async () => {

@@ -77,7 +77,7 @@ export default function TarifasPage() {
           setAuthInitialTab(tab || "login");
           setAuthModalOpen(true);
         }}
-        onOpenAdmin={() => router.push("/")}
+        onOpenAdmin={() => router.push("/admin")}
         onOpenSettings={() => router.push("/minha-conta")}
         onOpenMyProducts={() => router.push("/meus-produtos")}
         onGoHome={() => router.push("/")}

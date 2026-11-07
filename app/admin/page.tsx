@@ -3,16 +3,18 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AdminDashboard } from "@/components/AdminDashboard";
-import { getStoredUserSync } from "@/lib/authStore";
+import { getStoredUserSync, isUserAdmin, saveStoredUser } from "@/lib/authStore";
 import { getStoredProducts } from "@/lib/productStore";
 import { UserProfile, Product } from "@/types";
-import { ShieldAlert, ArrowLeft, Loader2 } from "lucide-react";
+import { AuthModal } from "@/components/AuthModal";
+import { ShieldAlert, ArrowLeft, Loader2, LogIn } from "lucide-react";
 
 export default function AdminPage() {
   const router = useRouter();
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
 
   useEffect(() => {
     const user = getStoredUserSync();
@@ -37,10 +39,7 @@ export default function AdminPage() {
     );
   }
 
-  const isAdmin =
-    currentUser?.role === "admin" ||
-    currentUser?.email?.toLowerCase().includes("gennyson") ||
-    currentUser?.name?.toLowerCase().includes("gennyson");
+  const isAdmin = isUserAdmin(currentUser);
 
   if (!isAdmin) {
     return (
@@ -52,14 +51,35 @@ export default function AdminPage() {
         <p className="text-sm text-zinc-400 max-w-md">
           Esta área é exclusiva para administradores da plataforma PlayContas. Faça login com a sua conta de administrador para continuar.
         </p>
-        <button
-          type="button"
-          onClick={() => router.push("/")}
-          className="px-6 py-2.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Voltar à Loja</span>
-        </button>
+        <div className="flex items-center gap-3 pt-2">
+          <button
+            type="button"
+            onClick={() => setAuthModalOpen(true)}
+            className="px-6 py-2.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 shadow-lg shadow-blue-500/25"
+          >
+            <LogIn className="w-4 h-4" />
+            <span>Fazer Login</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push("/")}
+            className="px-6 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-zinc-300 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer flex items-center gap-2 border border-zinc-800"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            <span>Voltar à Loja</span>
+          </button>
+        </div>
+
+        <AuthModal
+          isOpen={authModalOpen}
+          initialTab="login"
+          onClose={() => setAuthModalOpen(false)}
+          onLoginSuccess={(user) => {
+            saveStoredUser(user);
+            setCurrentUser(user);
+            setAuthModalOpen(false);
+          }}
+        />
       </div>
     );
   }

@@ -233,9 +233,7 @@ export function JamHeader({
             <NotificationBell currentUser={currentUser} />
 
             {/* Admin Panel Button if user is Admin */}
-            {(currentUser?.role === "admin" ||
-              currentUser?.email?.toLowerCase().includes("gennyson") ||
-              currentUser?.name?.toLowerCase().includes("gennyson")) && (
+            {isUserAdmin(currentUser) && (
               <button
                 onClick={() => {
                   if (onOpenAdmin) onOpenAdmin();

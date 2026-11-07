@@ -168,6 +168,7 @@ export default function MinhaContaPage() {
         onOpenCreateListing={() => router.push("/anunciar")}
         currentUser={currentUser}
         onOpenMyProducts={() => router.push("/meus-produtos")}
+        onOpenAdmin={() => router.push("/admin")}
         onOpenAuth={(tab) => {
           setAuthInitialTab(tab || "login");
           setAuthModalOpen(true);
@@ -225,7 +226,7 @@ export default function MinhaContaPage() {
                 }
               } catch {}
             }}
-            onOpenAdmin={() => router.push("/")}
+            onOpenAdmin={() => router.push("/admin")}
             onCreateListing={() => router.push("/")}
             onOpenMyProducts={() => router.push("/meus-produtos")}
           />

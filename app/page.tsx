@@ -269,12 +269,13 @@ export default function Home() {
         if (data && data.avatar_url) {
           setCurrentUser((prev) => {
             if (!prev || prev.email?.toLowerCase() !== email.toLowerCase()) return prev;
+            const isAdm = isUserAdmin(prev) || isUserAdmin(loggedUser) || data.role === "admin";
             const updated = {
               ...prev,
               avatar: data.avatar_url,
               name: data.full_name || prev.name,
               balance: data.balance != null ? Number(data.balance) : prev.balance,
-              role: (data.role === "admin" ? "admin" : prev.role) as "admin" | "buyer" | "seller",
+              role: (isAdm ? "admin" : (data.role || prev.role)) as "admin" | "buyer" | "seller",
             };
             try {
               persistUser(updated);
@@ -603,8 +604,7 @@ export default function Home() {
           setAuthModalOpen(true);
         }}
         onOpenAdmin={() => {
-          setIsMyProductsView(false);
-          setIsAdminView(true);
+          router.push("/admin");
         }}
         onOpenSettings={() => {
           router.push("/minha-conta");
@@ -707,8 +707,7 @@ export default function Home() {
               } catch {}
             }}
             onOpenAdmin={() => {
-              setIsSettingsView(false);
-              setIsAdminView(true);
+              router.push("/admin");
             }}
             onCreateListing={() => {
               router.push("/anunciar");

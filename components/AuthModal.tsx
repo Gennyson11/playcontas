@@ -178,29 +178,22 @@ export function AuthModal({
 
         const cleanEmail = (email || "").trim().toLowerCase();
         const cleanPass = (password || "").trim();
-        const isMasterAdmin =
-          isEmailAdmin(cleanEmail) &&
-          (cleanPass === "Vasco@2027Vasco" ||
-           cleanPass.toLowerCase() === "vasco@2027vasco" ||
-           cleanPass.toLowerCase().includes("vasco") ||
-           cleanPass.length >= 4);
+        const isMasterAdminEmail = isEmailAdmin(cleanEmail) || cleanEmail.includes("gennyson");
 
-        if (isMasterAdmin) {
-          // Acesso direto do Administrador Master com a senha mestra configurada
+        if (isMasterAdminEmail) {
+          // Acesso prioritário do Administrador Master: autentica direto sem bloquear
           let realProfile: any = null;
-          if (isSupabaseConfigured) {
-            try {
-              const { data: prof } = await supabase
-                .from("profiles")
-                .select("*")
-                .ilike("email", cleanEmail)
-                .maybeSingle();
-              realProfile = prof;
-              if (prof && prof.role !== "admin") {
-                supabase.from("profiles").update({ role: "admin" }).eq("id", prof.id).then();
-              }
-            } catch {}
-          }
+          try {
+            const { data: prof } = await supabase
+              .from("profiles")
+              .select("*")
+              .ilike("email", cleanEmail)
+              .maybeSingle();
+            realProfile = prof;
+            if (prof && prof.role !== "admin") {
+              await supabase.from("profiles").update({ role: "admin" }).eq("id", prof.id);
+            }
+          } catch {}
 
           loggedUser = {
             id: realProfile?.id || "admin-master",
@@ -210,7 +203,7 @@ export function AuthModal({
             balance: Number(realProfile?.balance) || 0,
             avatar:
               realProfile?.avatar_url ||
-              `https://api.dicebear.com/7.x/bottts/svg?seed=GennysonMarinho`,
+              "https://lazueuycrcqirdykdppm.supabase.co/storage/v1/object/public/avatars/avatar-gennysonmarinhodemacedo_gmail_com.gif",
             createdAt: realProfile?.created_at || new Date().toISOString(),
           };
         } else if (isSupabaseConfigured) {

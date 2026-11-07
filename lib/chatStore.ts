@@ -490,8 +490,8 @@ export async function listAllChatsAdmin(): Promise<{ chats: OrderChat[]; error?:
   return { chats: all };
 }
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://lazueuycrcqirdykdppm.supabase.co";
+const SUPABASE_ANON = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "sb_publishable_bOPpDSY1CpVBf-9KugNU8g_uQh2-9e_";
 
 /** Token de acesso da sessão atual lido direto do armazenamento (sem esperar o cliente de autenticação) */
 function readStoredAccessToken(): string | null {

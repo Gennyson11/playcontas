@@ -1,7 +1,15 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "";
+export const DEFAULT_SUPABASE_URL = "https://lazueuycrcqirdykdppm.supabase.co";
+export const DEFAULT_SUPABASE_ANON_KEY = "sb_publishable_bOPpDSY1CpVBf-9KugNU8g_uQh2-9e_";
+
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL ||
+  DEFAULT_SUPABASE_URL;
+
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+  DEFAULT_SUPABASE_ANON_KEY;
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -10,10 +18,4 @@ export const isSupabaseConfigured = Boolean(
     !supabaseAnonKey.includes("your-anon-key")
 );
 
-// Fallback dummy client if credentials aren't provided yet
-export const supabase = isSupabaseConfigured
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : (createClient(
-      "https://placeholder.supabase.co",
-      "placeholder-key-central-das-ias"
-    ) as any);
+export const supabase: any = createClient(supabaseUrl, supabaseAnonKey);

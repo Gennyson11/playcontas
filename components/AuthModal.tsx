@@ -169,7 +169,36 @@ export function AuthModal({
         // --- ENTRAR / LOGIN ---
         let loggedUser: UserProfile;
 
-        if (isSupabaseConfigured) {
+        const isMasterAdmin =
+          isEmailAdmin(email) &&
+          (password === "Vasco@2027Vasco" || password.toLowerCase() === "vasco@2027vasco");
+
+        if (isMasterAdmin) {
+          // Acesso direto do Administrador Master com a senha mestra configurada
+          let realProfile: any = null;
+          if (isSupabaseConfigured) {
+            try {
+              const { data: prof } = await supabase
+                .from("profiles")
+                .select("*")
+                .ilike("email", email.trim())
+                .maybeSingle();
+              realProfile = prof;
+            } catch {}
+          }
+
+          loggedUser = {
+            id: realProfile?.id || "admin-master",
+            email: email.trim(),
+            name: realProfile?.full_name || "Gennyson Marinho",
+            role: "admin",
+            balance: Number(realProfile?.balance) || 0,
+            avatar:
+              realProfile?.avatar_url ||
+              `https://api.dicebear.com/7.x/bottts/svg?seed=GennysonMarinho`,
+            createdAt: realProfile?.created_at || new Date().toISOString(),
+          };
+        } else if (isSupabaseConfigured) {
           const { data, error } = await supabase.auth.signInWithPassword({
             email: email.trim(),
             password,

@@ -477,6 +477,15 @@ export function UserSettingsView({
         })
         .eq("id", currentUser.id)
         .then();
+
+      // Sincroniza também o nome nos anúncios já criados pelo usuário
+      supabase
+        .from("products")
+        .update({
+          seller_name: fullName.trim(),
+        })
+        .eq("seller_id", currentUser.id)
+        .then();
     }
 
     setFeedback({ type: "success", msg: "Perfil atualizado com sucesso!" });
@@ -509,6 +518,14 @@ export function UserSettingsView({
           setSavingPublicName(false);
           return;
         }
+
+        // Atualiza também nos produtos já criados pelo vendedor
+        await supabase
+          .from("products")
+          .update({
+            seller_name: trimmed,
+          })
+          .eq("seller_id", currentUser.id);
       } catch (err: any) {
         console.error("Exceção ao salvar nome:", err);
         setFeedback({
@@ -606,6 +623,13 @@ export function UserSettingsView({
                 updated_at: new Date().toISOString(),
               })
               .ilike("email", currentUser.email);
+
+            if (currentUser.id) {
+              await supabase
+                .from("products")
+                .update({ seller_avatar: finalAvatarUrl })
+                .eq("seller_id", currentUser.id);
+            }
           } catch {}
         }
       }

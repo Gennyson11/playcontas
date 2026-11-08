@@ -1435,6 +1435,59 @@ export function IdentityVerificationView({
                     <span className="font-bold text-emerald-700">Até 24 horas úteis</span>
                   </div>
                 </div>
+
+                {/* Botões de Ação para Reenvio / Correção de Documentos */}
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCurrentStep(1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#0066FF] hover:bg-[#0052CC] text-white font-bold text-xs transition shadow-sm cursor-pointer"
+                  >
+                    Editar / Reenviar Documentos
+                  </button>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const emptyVerif: VerificationData = {
+                        email: currentUser?.email || "",
+                        phone: "",
+                        pixKey: "",
+                        pixType: "cpf",
+                        fullName: currentUser?.name || "",
+                        cpf: "",
+                        birthDate: "",
+                        motherName: "",
+                        nationality: "Brasileira",
+                        cep: "",
+                        street: "",
+                        number: "",
+                        complement: "",
+                        neighborhood: "",
+                        city: "",
+                        state: "SP",
+                        documentType: "RG",
+                        documentNumber: "",
+                        issuingAgency: "SSP",
+                        status: "none",
+                      };
+                      setVerification(emptyVerif);
+                      if (currentUser?.id) {
+                        try {
+                          localStorage.removeItem(`central_user_verification_${currentUser.id}`);
+                          localStorage.removeItem("central_user_verification");
+                        } catch {}
+                      }
+                      setCurrentStep(1);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    }}
+                    className="w-full sm:w-auto px-5 py-2.5 rounded-xl border border-zinc-200 hover:bg-zinc-100 text-zinc-700 font-bold text-xs transition cursor-pointer"
+                  >
+                    Começar do Zero
+                  </button>
+                </div>
               </>
             )}
           </div>

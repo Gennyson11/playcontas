@@ -31,6 +31,7 @@ import {
   AlertCircle,
   User,
   Lock,
+  Loader2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -529,7 +530,11 @@ export default function FinalizarCompraPage() {
     } catch {}
   };
 
+  const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+
   const handleSimulateApproval = async () => {
+    if (isVerifyingPayment || isPaidSuccess) return;
+    setIsVerifyingPayment(true);
     if (syncPayIdentifier) {
       try {
         await fetch("/api/syncpay/check-status", {
@@ -539,7 +544,8 @@ export default function FinalizarCompraPage() {
         });
       } catch {}
     }
-    finishPurchase();
+    await finishPurchase();
+    setIsVerifyingPayment(false);
   };
 
   return (
@@ -727,6 +733,31 @@ export default function FinalizarCompraPage() {
                     )}
                   </button>
                 </div>
+              </div>
+
+              {/* Botão de confirmação manual imediata */}
+              <div className="pt-2 space-y-2">
+                <button
+                  type="button"
+                  disabled={isVerifyingPayment || isPaidSuccess}
+                  onClick={handleSimulateApproval}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
+                >
+                  {isVerifyingPayment ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Confirmando pagamento...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Já realizei o pagamento! Liberar Pedido</span>
+                    </>
+                  )}
+                </button>
+                <p className="text-[11px] text-zinc-400 text-center">
+                  Após pagar no seu banco, o sistema reconhece automaticamente. Se preferir, clique no botão acima para liberar imediatamente.
+                </p>
               </div>
             </div>
           ) : cart.length === 0 ? (

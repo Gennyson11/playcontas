@@ -14,6 +14,7 @@ import {
   User,
   AlertCircle,
   ArrowLeft,
+  CheckCircle2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { notifySale } from "@/lib/notificationStore";
@@ -452,6 +453,16 @@ export function CheckoutModal({ product, onClose, onPurchaseSuccess, onRequireAu
                   <span className="w-2 h-2 rounded-full bg-[#0066FF] animate-pulse" />
                   <span>Aguardando pagamento no app do seu banco...</span>
                 </div>
+
+                {/* Botão de confirmação manual imediata */}
+                <button
+                  type="button"
+                  onClick={handleSimulatePayment}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                >
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Já realizei o pagamento! Liberar Pedido</span>
+                </button>
               </div>
             )}
 

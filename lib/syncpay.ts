@@ -360,13 +360,25 @@ export async function getSyncPayPixStatus(
   }
 
   try {
-    const res = await fetch(`${BASE_URL}/cash-in/${identifier}`, {
+    let res = await fetch(`${BASE_URL}/transaction/${identifier}`, {
       method: "GET",
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: "application/json",
       },
     });
+
+    if (!res.ok) {
+      // Tenta rota legada caso a API responda em /cash-in
+      const alt = await fetch(`${BASE_URL}/cash-in/${identifier}`, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
+      });
+      if (alt.ok) res = alt;
+    }
 
     if (!res.ok) {
       return { identifier, status: "pending", amount: 0 };
@@ -376,13 +388,14 @@ export async function getSyncPayPixStatus(
     const rawStatus = (
       data.status ||
       data.transaction?.status ||
+      data.data?.status ||
       "pending"
     ).toLowerCase();
 
     let mappedStatus: SyncPayStatusResponse["status"] = "pending";
-    if (["approved", "paid", "completed", "success"].includes(rawStatus)) {
+    if (["approved", "paid", "completed", "success", "confirmed"].includes(rawStatus)) {
       mappedStatus = "approved";
-    } else if (["expired", "cancelled"].includes(rawStatus)) {
+    } else if (["expired", "cancelled", "canceled"].includes(rawStatus)) {
       mappedStatus = "expired";
     } else if (["refunded", "chargeback"].includes(rawStatus)) {
       mappedStatus = "refunded";

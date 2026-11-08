@@ -29,7 +29,7 @@ export function buildProductInsertPayload(p: Product, sellerId: string, sellerNa
     seller_id: sellerId,
     seller_avatar: p.seller?.avatar || null,
     warranty_days: p.warrantyDays || 30,
-    status: "active",
+    status: p.status || "pending_review",
   };
   if (UUID_RE.test(p.id)) payload.id = p.id;
   return payload;

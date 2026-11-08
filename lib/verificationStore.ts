@@ -201,49 +201,55 @@ export async function saveStoredVerification(
   userId: string,
   data: VerificationData
 ): Promise<void> {
-  let newSubmission: VerificationSubmission | null = null;
+  const user = getStoredUserSync();
+  const now = new Date();
+  const formattedDate = `${now.toLocaleDateString("pt-BR")}, ${now.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  })}`;
 
+  const newSubmission: VerificationSubmission = {
+    ...data,
+    id: `verif-${userId || Date.now()}`,
+    userId: userId || `user-${Date.now()}`,
+    userName: data.fullName || user?.name || "Usuário",
+    userAvatar:
+      user?.avatar ||
+      `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
+        data.fullName || "User"
+      )}`,
+    submittedAt: data.submittedAt || formattedDate,
+    status: data.status || "pending",
+  };
+
+  // 1. Salva no localStorage de forma leve (sem base64 pesados que estouram cota)
   if (typeof window !== "undefined") {
     try {
-      localStorage.setItem(
-        `${VERIFICATION_STORAGE_KEY}_${userId}`,
-        JSON.stringify(data)
-      );
-      localStorage.setItem(VERIFICATION_STORAGE_KEY, JSON.stringify(data));
-
-      // Atualiza também na lista global de verificações para o painel Admin
-      const submissions = getStoredAllVerificationsSync();
-      const idx = submissions.findIndex((s) => s.userId === userId || s.email === data.email);
-      const user = getStoredUserSync();
-
-      newSubmission = {
+      const lightweightData = {
         ...data,
-        id: idx >= 0 ? submissions[idx].id : `verif-${Date.now()}`,
-        userId: userId || `user-${Date.now()}`,
-        userName: data.fullName || user?.name || "Usuário",
-        userAvatar:
-          user?.avatar ||
-          `https://api.dicebear.com/7.x/bottts/svg?seed=${encodeURIComponent(
-            data.fullName || "User"
-          )}`,
-        submittedAt:
-          idx >= 0 && submissions[idx].submittedAt
-            ? submissions[idx].submittedAt
-            : `${new Date().toLocaleDateString("pt-BR")}, ${new Date().toLocaleTimeString("pt-BR", {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}`,
+        docFrontFile: data.docFrontFile?.startsWith("data:") ? undefined : data.docFrontFile,
+        docBackFile: data.docBackFile?.startsWith("data:") ? undefined : data.docBackFile,
+        docSelfieFile: data.docSelfieFile?.startsWith("data:") ? undefined : data.docSelfieFile,
+        addressProofFile: data.addressProofFile?.startsWith("data:") ? undefined : data.addressProofFile,
       };
 
+      try {
+        localStorage.setItem(`${VERIFICATION_STORAGE_KEY}_${userId}`, JSON.stringify(lightweightData));
+        localStorage.setItem(VERIFICATION_STORAGE_KEY, JSON.stringify(lightweightData));
+      } catch {}
+
+      const submissions = getStoredAllVerificationsSync();
+      const idx = submissions.findIndex((s) => s.userId === userId || (data.email && s.email === data.email));
       if (idx >= 0) {
-        submissions[idx] = newSubmission;
+        submissions[idx] = { ...submissions[idx], ...newSubmission };
       } else {
         submissions.unshift(newSubmission);
       }
+      try {
+        localStorage.setItem(ALL_VERIFICATIONS_KEY, JSON.stringify(submissions));
+      } catch {}
 
-      localStorage.setItem(ALL_VERIFICATIONS_KEY, JSON.stringify(submissions));
-
-      // Sincroniza com a API central do servidor para funcionar entre navegadores e janelas diferentes
+      // Sincroniza via POST na API
       try {
         await fetch("/api/verifications", {
           method: "POST",
@@ -256,8 +262,7 @@ export async function saveStoredVerification(
     }
   }
 
-  // Atualiza perfil no authStore conforme o status da verificação
-  const user = getStoredUserSync();
+  // 2. Atualiza perfil no authStore se for o usuário logado
   if (user) {
     if (data.status === "approved") {
       const updated: UserProfile = {
@@ -288,7 +293,7 @@ export async function saveStoredVerification(
     } catch {}
   }
 
-  // Sincroniza com Supabase se configurado
+  // 3. Persiste DIRETAMENTE no banco Supabase (seller_verifications e profiles)
   if (isSupabaseConfigured) {
     try {
       const isIdUuid = isUUID(userId);
@@ -306,53 +311,53 @@ export async function saveStoredVerification(
         await supabase.from("profiles").update(updateData).ilike("email", data.email);
       }
 
-      // Persiste a solicitação de verificação diretamente no banco Supabase
-      if (newSubmission) {
-        try {
-          await supabase.from("seller_verifications").upsert(
-            {
-              id: isUUID(newSubmission.id) ? newSubmission.id : undefined,
-              user_id: isUUID(userId) ? userId : undefined,
-              user_name: newSubmission.userName,
-              email: newSubmission.email,
-              phone: newSubmission.phone,
-              pix_key: newSubmission.pixKey,
-              pix_type: newSubmission.pixType,
-              full_name: newSubmission.fullName,
-              cpf: newSubmission.cpf,
-              birth_date: newSubmission.birthDate,
-              mother_name: newSubmission.motherName,
-              nationality: newSubmission.nationality,
-              cep: newSubmission.cep,
-              street: newSubmission.street,
-              number: newSubmission.number,
-              complement: newSubmission.complement,
-              neighborhood: newSubmission.neighborhood,
-              city: newSubmission.city,
-              state: newSubmission.state,
-              document_type: newSubmission.documentType,
-              document_number: newSubmission.documentNumber,
-              issuing_agency: newSubmission.issuingAgency,
-              doc_front_url: newSubmission.docFrontFile,
-              doc_back_url: newSubmission.docBackFile,
-              doc_selfie_url: newSubmission.docSelfieFile,
-              address_proof_url: newSubmission.addressProofFile,
-              status: newSubmission.status || "pending",
-            },
-            { onConflict: "email" }
-          );
-        } catch {}
-
-        try {
-          await supabase.from("notifications").insert({
-            recipient_id: "bb25d258-3152-422b-aa04-7bd34e8a5927",
-            kind: "system",
-            title: "Nova Solicitação de Verificação",
-            body: JSON.stringify(newSubmission),
-            link: "/admin",
-          });
-        } catch {}
+      // Upsert na tabela oficial seller_verifications
+      try {
+        await supabase.from("seller_verifications").upsert(
+          {
+            user_id: isIdUuid ? userId : null,
+            user_name: newSubmission.userName,
+            email: newSubmission.email,
+            phone: newSubmission.phone,
+            pix_key: newSubmission.pixKey,
+            pix_type: newSubmission.pixType,
+            full_name: newSubmission.fullName,
+            cpf: newSubmission.cpf,
+            birth_date: newSubmission.birthDate,
+            mother_name: newSubmission.motherName,
+            nationality: newSubmission.nationality,
+            cep: newSubmission.cep,
+            street: newSubmission.street,
+            number: newSubmission.number,
+            complement: newSubmission.complement,
+            neighborhood: newSubmission.neighborhood,
+            city: newSubmission.city,
+            state: newSubmission.state,
+            document_type: newSubmission.documentType,
+            document_number: newSubmission.documentNumber,
+            issuing_agency: newSubmission.issuingAgency,
+            doc_front_url: newSubmission.docFrontFile,
+            doc_back_url: newSubmission.docBackFile,
+            doc_selfie_url: newSubmission.docSelfieFile,
+            address_proof_url: newSubmission.addressProofFile,
+            status: newSubmission.status || "pending",
+          },
+          { onConflict: "email" }
+        );
+      } catch (e) {
+        console.warn("Aviso ao fazer upsert em seller_verifications:", e);
       }
+
+      // Também insere uma notificação para o admin
+      try {
+        await supabase.from("notifications").insert({
+          recipient_id: "bb25d258-3152-422b-aa04-7bd34e8a5927",
+          kind: "system",
+          title: "Nova Solicitação de Verificação",
+          body: JSON.stringify(newSubmission),
+          link: "/admin",
+        });
+      } catch {}
     } catch (err) {
       console.warn("Aviso ao salvar verificação no Supabase:", err);
     }

@@ -531,21 +531,47 @@ export default function FinalizarCompraPage() {
   };
 
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [paymentCheckError, setPaymentCheckError] = useState<string>("");
 
-  const handleSimulateApproval = async () => {
+  const handleManualCheckPayment = async () => {
     if (isVerifyingPayment || isPaidSuccess) return;
     setIsVerifyingPayment(true);
-    if (syncPayIdentifier) {
-      try {
-        await fetch("/api/syncpay/check-status", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ identifier: syncPayIdentifier }),
-        });
-      } catch {}
+    setPaymentCheckError("");
+
+    try {
+      if (!syncPayIdentifier) {
+        setPaymentCheckError("Identificador da cobrança não encontrado. Gere o Pix novamente.");
+        setIsVerifyingPayment(false);
+        return;
+      }
+
+      const res = await fetch(
+        `/api/syncpay/check-status?identifier=${encodeURIComponent(
+          syncPayIdentifier
+        )}`
+      );
+      const data = await res.json();
+
+      if (
+        data.success &&
+        (data.status === "approved" ||
+          data.status === "paid" ||
+          data.status === "completed" ||
+          data.status === "confirmed")
+      ) {
+        // Pagamento 100% confirmado e compensado na SyncPay!
+        await finishPurchase();
+      } else {
+        // Pagamento ainda NÃO confirmado: BLOQUEIA a liberação!
+        setPaymentCheckError(
+          "Pagamento ainda não identificado pelo banco. Se você já realizou o Pix pelo aplicativo do seu banco, aguarde alguns instantes (a compensação costuma levar entre 5 e 15 segundos) e clique novamente."
+        );
+      }
+    } catch {
+      setPaymentCheckError("Não foi possível consultar o status do Pix no momento. Tente novamente.");
+    } finally {
+      setIsVerifyingPayment(false);
     }
-    await finishPurchase();
-    setIsVerifyingPayment(false);
   };
 
   return (
@@ -735,28 +761,35 @@ export default function FinalizarCompraPage() {
                 </div>
               </div>
 
-              {/* Botão de confirmação manual imediata */}
+              {/* Botão de confirmação com validação estrita no banco */}
               <div className="pt-2 space-y-2">
                 <button
                   type="button"
                   disabled={isVerifyingPayment || isPaidSuccess}
-                  onClick={handleSimulateApproval}
+                  onClick={handleManualCheckPayment}
                   className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-sm flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
                   {isVerifyingPayment ? (
                     <>
                       <Loader2 className="w-4 h-4 animate-spin" />
-                      <span>Confirmando pagamento...</span>
+                      <span>Consultando banco...</span>
                     </>
                   ) : (
                     <>
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>Já realizei o pagamento! Liberar Pedido</span>
+                      <span>Verificar Pagamento Realizado</span>
                     </>
                   )}
                 </button>
+
+                {paymentCheckError && (
+                  <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs font-semibold text-amber-800 text-center animate-fadeIn leading-relaxed">
+                    {paymentCheckError}
+                  </div>
+                )}
+
                 <p className="text-[11px] text-zinc-400 text-center">
-                  Após pagar no seu banco, o sistema reconhece automaticamente. Se preferir, clique no botão acima para liberar imediatamente.
+                  O sistema reconhece a aprovação automaticamente. Se você já transferiu, clique acima para consultar a compensação.
                 </p>
               </div>
             </div>

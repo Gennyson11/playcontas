@@ -15,6 +15,7 @@ import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
+  Loader2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import { notifySale } from "@/lib/notificationStore";
@@ -196,6 +197,46 @@ export function CheckoutModal({ product, onClose, onPurchaseSuccess, onRequireAu
     navigator.clipboard.writeText(pixCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
+  };
+
+  const [isCheckingPayment, setIsCheckingPayment] = useState(false);
+
+  const handleManualCheckPayment = async () => {
+    if (isCheckingPayment) return;
+    setIsCheckingPayment(true);
+    setChatErr("");
+
+    try {
+      if (!syncPayIdentifier) {
+        setChatErr("Aguarde o código Pix ser gerado para consultar.");
+        setIsCheckingPayment(false);
+        return;
+      }
+
+      const res = await fetch(
+        `/api/syncpay/check-status?identifier=${encodeURIComponent(
+          syncPayIdentifier
+        )}`
+      );
+      const data = await res.json();
+      if (
+        data.success &&
+        (data.status === "approved" ||
+          data.status === "paid" ||
+          data.status === "completed" ||
+          data.status === "confirmed")
+      ) {
+        handleSimulatePayment();
+      } else {
+        setChatErr(
+          "Pagamento ainda não confirmado pelo banco. Se você já pagou pelo app do seu banco, aguarde alguns segundos e clique novamente."
+        );
+      }
+    } catch {
+      setChatErr("Não foi possível verificar o pagamento agora. Tente novamente.");
+    } finally {
+      setIsCheckingPayment(false);
+    }
   };
 
   const handleSimulatePayment = async () => {
@@ -454,14 +495,24 @@ export function CheckoutModal({ product, onClose, onPurchaseSuccess, onRequireAu
                   <span>Aguardando pagamento no app do seu banco...</span>
                 </div>
 
-                {/* Botão de confirmação manual imediata */}
+                {/* Botão de checagem manual rigorosa */}
                 <button
                   type="button"
-                  onClick={handleSimulatePayment}
-                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer"
+                  disabled={isCheckingPayment}
+                  onClick={handleManualCheckPayment}
+                  className="w-full py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md cursor-pointer disabled:opacity-50"
                 >
-                  <CheckCircle2 className="w-4 h-4" />
-                  <span>Já realizei o pagamento! Liberar Pedido</span>
+                  {isCheckingPayment ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <span>Consultando banco...</span>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>Verificar Pagamento Realizado</span>
+                    </>
+                  )}
                 </button>
               </div>
             )}

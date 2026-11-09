@@ -3,6 +3,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { Product } from "@/types";
 import { GENNYSON_AVATAR_URL } from "@/lib/avatarStore";
+import { FICTIONAL_TOP_SELLERS } from "@/lib/topSellersData";
 import { Trophy, Crown, BadgeCheck, ChevronDown, ChevronUp } from "lucide-react";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
@@ -101,12 +102,23 @@ export function TopSellersSection({ products }: TopSellersSectionProps) {
   const ranking = useMemo<SellerRank[]>(() => {
     const map = new Map<string, SellerRank>();
 
+    // Inicializa com os vendedores de destaque (ranking completo de 10 posições)
+    FICTIONAL_TOP_SELLERS.forEach((f) => {
+      map.set(f.key, { ...f });
+    });
+
     products.forEach((p) => {
       if (!p || !p.seller) return;
       const name = p.seller.name || "Vendedor";
       const id = p.seller.id || "";
-      const key = (id || name).toLowerCase().trim();
+      let key = (id || name).toLowerCase().trim();
       if (!key) return;
+
+      if (name.toLowerCase().includes("gennyson") || id === "bb25d258-3152-422b-aa04-7bd34e8a5927") {
+        key = "gennyson-marinho";
+      } else if (name.toLowerCase().includes("smolder") || key.includes("fensmolder")) {
+        key = "smolder-tools";
+      }
 
       const sales = Math.max(0, Number(p.salesCount) || 0);
       const revenue = (Number(p.price) || 0) * sales;
@@ -135,16 +147,19 @@ export function TopSellersSection({ products }: TopSellersSectionProps) {
       }
     });
 
-    // Mescla com vendas reais registradas em pedidos / order_chats
+    // Mescla com vendas registradas em pedidos / order_chats
     Object.entries(realOrderStats).forEach(([sellerKey, stat]) => {
-      const existing = map.get(sellerKey);
+      let k = sellerKey;
+      if (k.includes("gennyson")) k = "gennyson-marinho";
+      if (k.includes("smolder") || k.includes("fensmolder")) k = "smolder-tools";
+      const existing = map.get(k);
       if (existing) {
-        existing.revenue = Math.max(existing.revenue, stat.revenue);
-        existing.sales = Math.max(existing.sales, stat.sales);
+        existing.revenue += stat.revenue;
+        existing.sales += stat.sales;
       }
     });
 
-    // Retorna apenas vendedores reais ordenados pelo faturamento real
+    // Retorna os top 10 vendedores ordenados por faturamento
     return Array.from(map.values())
       .sort((a, b) => {
         if (b.revenue !== a.revenue) return b.revenue - a.revenue;

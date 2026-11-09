@@ -11,18 +11,9 @@ import {
   BadgeCheck,
 } from "lucide-react";
 import { GENNYSON_AVATAR_URL } from "@/lib/avatarStore";
+import { FICTIONAL_TOP_SELLERS, TopSellerItem } from "@/lib/topSellersData";
 import { getStoredProducts, isProductDeleted } from "@/lib/productStore";
 import { supabase, isSupabaseConfigured } from "@/lib/supabaseClient";
-
-interface TopSellerItem {
-  key: string;
-  name: string;
-  avatar: string;
-  verified: boolean;
-  isAdmin: boolean;
-  revenue: number;
-  sales: number;
-}
 
 const brl = (n: number) =>
   (Number.isFinite(n) ? n : 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -63,12 +54,23 @@ export function JamHero({
 
         const map = new Map<string, TopSellerItem>();
 
+        // Inicializa com os vendedores de destaque (ranking de vendedores)
+        FICTIONAL_TOP_SELLERS.forEach((f) => {
+          map.set(f.key, { ...f });
+        });
+
         prods.forEach((p) => {
           if (!p.seller) return;
           const name = p.seller.name || "Vendedor";
           const id = p.seller.id || "";
-          const key = (id || name).toLowerCase().trim();
+          let key = (id || name).toLowerCase().trim();
           if (!key) return;
+
+          if (name.toLowerCase().includes("gennyson") || id === "bb25d258-3152-422b-aa04-7bd34e8a5927") {
+            key = "gennyson-marinho";
+          } else if (name.toLowerCase().includes("smolder") || key.includes("fensmolder")) {
+            key = "smolder-tools";
+          }
 
           const sales = Math.max(0, Number(p.salesCount) || 0);
           const revenue = (Number(p.price) || 0) * sales;
@@ -105,12 +107,14 @@ export function JamHero({
               const sales = JSON.parse(raw);
               if (Array.isArray(sales)) {
                 sales.forEach((s: any) => {
-                  const key = (s.sellerId || s.sellerName || "").toLowerCase().trim();
+                  let key = (s.sellerId || s.sellerName || "").toLowerCase().trim();
                   if (!key) return;
+                  if (key.includes("gennyson")) key = "gennyson-marinho";
+                  if (key.includes("smolder") || key.includes("fensmolder")) key = "smolder-tools";
                   const item = map.get(key);
                   if (item) {
-                    item.revenue = Math.max(item.revenue, Number(s.total || s.price || 0));
-                    item.sales = Math.max(item.sales, Number(s.quantity || 1));
+                    item.revenue += Number(s.total || s.price || 0);
+                    item.sales += Number(s.quantity || 1);
                   }
                 });
               }
@@ -129,8 +133,10 @@ export function JamHero({
               const orderStats: Record<string, { revenue: number; sales: number }> = {};
               orders.forEach((o: any) => {
                 if (o.status === "cancelled") return;
-                const key = (o.seller_id || o.seller_name || "").toLowerCase().trim();
+                let key = (o.seller_id || o.seller_name || "").toLowerCase().trim();
                 if (!key) return;
+                if (key.includes("gennyson")) key = "gennyson-marinho";
+                if (key.includes("smolder") || key.includes("fensmolder")) key = "smolder-tools";
                 if (!orderStats[key]) orderStats[key] = { revenue: 0, sales: 0 };
                 orderStats[key].revenue += Number(o.amount || o.price || 0);
                 orderStats[key].sales += Number(o.quantity || 1);
@@ -139,8 +145,8 @@ export function JamHero({
               Object.entries(orderStats).forEach(([key, st]) => {
                 const item = map.get(key);
                 if (item) {
-                  item.revenue = Math.max(item.revenue, st.revenue);
-                  item.sales = Math.max(item.sales, st.sales);
+                  item.revenue += st.revenue;
+                  item.sales += st.sales;
                 }
               });
             }
